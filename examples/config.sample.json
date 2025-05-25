@@ -1,0 +1,47 @@
+{
+  "app": {
+    "check_interval": 5,
+    "max_messages_per_folder": 1000,
+    "auto_mark_read": false,
+    "download_attachments": false,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "info"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 20,
+    "message_list_height": 50
+  },
+  "accounts": [
+    {
+      "id": "main",
+      "name": "Main Account",
+      "email": "your-email@gmail.com",
+      "imap": {
+        "server": "imap.gmail.com",
+        "port": 993,
+        "username": "your-email@gmail.com",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "OAuth2"
+      },
+      "smtp": {
+        "server": "smtp.gmail.com",
+        "port": 587,
+        "username": "your-email@gmail.com",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "OAuth2"
+      },
+      "oauth_config": {
+        "client_id": "YOUR_GOOGLE_CLIENT_ID",
+        "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "redirect_uri": "http://localhost:8080/oauth/callback"
+      }
+    }
+  ]
+}

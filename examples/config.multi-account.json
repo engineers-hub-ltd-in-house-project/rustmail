@@ -1,0 +1,116 @@
+{
+  "app": {
+    "check_interval": 5,
+    "max_messages_per_folder": 1000,
+    "auto_mark_read": false,
+    "download_attachments": false,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "info"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 20,
+    "message_list_height": 50
+  },
+  "accounts": [
+    {
+      "id": "gmail",
+      "name": "Gmail Account",
+      "email": "user@gmail.com",
+      "imap": {
+        "server": "imap.gmail.com",
+        "port": 993,
+        "username": "user@gmail.com",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "OAuth2"
+      },
+      "smtp": {
+        "server": "smtp.gmail.com",
+        "port": 587,
+        "username": "user@gmail.com",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "OAuth2"
+      },
+      "oauth_config": {
+        "client_id": "YOUR_GOOGLE_CLIENT_ID",
+        "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "redirect_uri": "http://localhost:8080/oauth/callback"
+      }
+    },
+    {
+      "id": "yahoo",
+      "name": "Yahoo Mail",
+      "email": "user@yahoo.com",
+      "imap": {
+        "server": "imap.mail.yahoo.com",
+        "port": 993,
+        "username": "user@yahoo.com",
+        "password": "YOUR_YAHOO_APP_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Plain"
+      },
+      "smtp": {
+        "server": "smtp.mail.yahoo.com",
+        "port": 587,
+        "username": "user@yahoo.com",
+        "password": "YOUR_YAHOO_APP_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Plain"
+      }
+    },
+    {
+      "id": "outlook",
+      "name": "Outlook Account",
+      "email": "user@outlook.com",
+      "imap": {
+        "server": "outlook.office365.com",
+        "port": 993,
+        "username": "user@outlook.com",
+        "password": "YOUR_OUTLOOK_APP_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Plain"
+      },
+      "smtp": {
+        "server": "smtp-mail.outlook.com",
+        "port": 587,
+        "username": "user@outlook.com",
+        "password": "YOUR_OUTLOOK_APP_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Plain"
+      }
+    },
+    {
+      "id": "work",
+      "name": "Work Account",
+      "email": "work@company.com",
+      "imap": {
+        "server": "mail.company.com",
+        "port": 993,
+        "username": "work@company.com",
+        "password": "YOUR_WORK_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Plain"
+      },
+      "smtp": {
+        "server": "mail.company.com",
+        "port": 587,
+        "username": "work@company.com",
+        "password": "YOUR_WORK_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Plain"
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "app": {
+    "check_interval": 10,
+    "max_messages_per_folder": 500,
+    "auto_mark_read": true,
+    "download_attachments": true,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "warn"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 25,
+    "message_list_height": 60
+  },
+  "accounts": [
+    {
+      "id": "enterprise",
+      "name": "Enterprise Account",
+      "email": "firstname.lastname@company.com",
+      "imap": {
+        "server": "mail.company.com",
+        "port": 993,
+        "username": "firstname.lastname@company.com",
+        "password": "YOUR_ENTERPRISE_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Plain"
+      },
+      "smtp": {
+        "server": "mail.company.com",
+        "port": 587,
+        "username": "firstname.lastname@company.com",
+        "password": "YOUR_ENTERPRISE_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Plain"
+      }
+    }
+  ]
+}

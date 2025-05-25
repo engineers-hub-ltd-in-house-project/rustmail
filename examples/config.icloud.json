@@ -1,0 +1,44 @@
+{
+  "app": {
+    "check_interval": 5,
+    "max_messages_per_folder": 1000,
+    "auto_mark_read": false,
+    "download_attachments": false,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "info"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 20,
+    "message_list_height": 50
+  },
+  "accounts": [
+    {
+      "id": "icloud",
+      "name": "iCloud Mail",
+      "email": "user@icloud.com",
+      "imap": {
+        "server": "imap.mail.me.com",
+        "port": 993,
+        "username": "user@icloud.com",
+        "password": "YOUR_ICLOUD_APP_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Plain"
+      },
+      "smtp": {
+        "server": "smtp.mail.me.com",
+        "port": 587,
+        "username": "user@icloud.com",
+        "password": "YOUR_ICLOUD_APP_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Plain"
+      }
+    }
+  ]
+}
