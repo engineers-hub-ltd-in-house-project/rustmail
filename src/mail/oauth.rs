@@ -80,6 +80,8 @@ impl GoogleOAuthClient {
             .add_scope(Scope::new(GMAIL_READONLY_SCOPE.to_string()))
             .add_scope(Scope::new(GMAIL_MODIFY_SCOPE.to_string()))
             .add_scope(Scope::new(GMAIL_SEND_SCOPE.to_string()))
+            .add_extra_param("access_type", "offline")
+            .add_extra_param("prompt", "consent")
             .url()
     }
 

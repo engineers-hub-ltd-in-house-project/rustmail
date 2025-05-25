@@ -38,7 +38,7 @@ pub struct SmtpConfig {
     pub auth_method: AuthMethod,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AuthMethod {
     Plain,
     Login,

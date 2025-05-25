@@ -1,6 +1,7 @@
 use async_imap::types::{Fetch, Flag as ImapFlag, Mailbox};
-use async_imap::{Client, Session};
+use async_imap::{Authenticator, Client, Session};
 use async_native_tls::{TlsConnector, TlsStream};
+use base64::{engine::general_purpose, Engine as _};
 use futures::StreamExt;
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncReadCompatExt;
@@ -24,37 +25,132 @@ impl ImapClient {
     pub async fn connect(&mut self) -> MailResult<()> {
         let imap_config = &self.account.imap;
 
+        println!("デバッグ: IMAP接続開始");
+        println!("  サーバー: {}:{}", imap_config.server, imap_config.port);
+        println!(
+            "  TLS: {}, STARTTLS: {}",
+            imap_config.use_tls, imap_config.use_starttls
+        );
+        println!("  認証方式: {:?}", imap_config.auth_method);
+
         // TCP接続
-        let tcp_stream =
-            TcpStream::connect(&format!("{}:{}", imap_config.server, imap_config.port))
-                .await
-                .map_err(|e| MailError::Connection(format!("TCP connection failed: {}", e)))?;
+        println!("デバッグ: TCP接続を開始中...");
+        let tcp_stream = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            TcpStream::connect(&format!("{}:{}", imap_config.server, imap_config.port)),
+        )
+        .await
+        .map_err(|_| MailError::Connection("TCP connection timeout (30 seconds)".to_string()))?
+        .map_err(|e| MailError::Connection(format!("TCP connection failed: {}", e)))?;
+
+        println!("デバッグ: TCP接続が成功しました");
 
         // 互換性のためのcompat変換
         let compat_stream = tcp_stream.compat();
 
         // TLS設定
+        println!("デバッグ: TLS接続を開始中...");
         let connector = TlsConnector::new();
-        let tls_stream = connector
-            .connect(&imap_config.server, compat_stream)
-            .await
-            .map_err(|e| MailError::Connection(format!("TLS connection failed: {}", e)))?;
+        let tls_stream = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            connector.connect(&imap_config.server, compat_stream),
+        )
+        .await
+        .map_err(|_| MailError::Connection("TLS connection timeout (30 seconds)".to_string()))?
+        .map_err(|e| MailError::Connection(format!("TLS connection failed: {}", e)))?;
+
+        println!("デバッグ: TLS接続が成功しました");
 
         // IMAPクライアント作成
+        println!("デバッグ: IMAPクライアントを作成中...");
         let client = Client::new(tls_stream);
 
         // 認証
+        println!("デバッグ: 認証処理を開始中...");
         let session = match imap_config.auth_method {
             AuthMethod::OAuth2 => {
-                // OAuth2の場合は手動で実装
-                return Err(MailError::Authentication(
-                    "OAuth2 not fully implemented for IMAP yet".to_string(),
-                ));
-            }
-            AuthMethod::Plain | AuthMethod::Login => client
-                .login(&imap_config.username, &imap_config.password)
+                // OAuth2認証の実装
+                let tokens = self.account.tokens.as_ref().ok_or_else(|| {
+                    MailError::Authentication(
+                        "No OAuth2 tokens available. Please run OAuth2 flow first.".to_string(),
+                    )
+                })?;
+
+                let _oauth_config = self.account.oauth_config.as_ref().ok_or_else(|| {
+                    MailError::Authentication("No OAuth2 config available".to_string())
+                })?;
+
+                println!(
+                    "デバッグ: OAuth2認証を試行中 - ユーザー: {}",
+                    self.account.email
+                );
+                println!(
+                    "デバッグ: アクセストークン長: {} 文字",
+                    tokens.access_token.len()
+                );
+                println!(
+                    "デバッグ: アクセストークンの最初の50文字: {}",
+                    &tokens.access_token[..std::cmp::min(50, tokens.access_token.len())]
+                );
+
+                // XOAUTH2文字列を手動で生成
+                let auth_string = format!(
+                    "user={}\x01auth=Bearer {}\x01\x01",
+                    self.account.email, tokens.access_token
+                );
+                let auth_string_b64 = general_purpose::STANDARD.encode(auth_string.as_bytes());
+
+                println!(
+                    "デバッグ: XOAUTH2文字列を生成しました（長さ: {}文字）",
+                    auth_string_b64.len()
+                );
+                println!(
+                    "デバッグ: 認証文字列の最初の100文字: {}",
+                    &auth_string_b64[..std::cmp::min(100, auth_string_b64.len())]
+                );
+
+                // 改良されたXOAUTH2 Authenticatorを作成
+                let authenticator = XOAuth2Authenticator::new_with_string(auth_string_b64);
+
+                println!("デバッグ: XOAUTH2 Authenticatorを作成しました");
+                println!("デバッグ: IMAP AUTHENTICATE XOAUTH2 コマンドを実行中...");
+
+                // async-imapのauthenticateメソッドを使用してOAuth2認証を実行（タイムアウト付き）
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    client.authenticate("XOAUTH2", authenticator),
+                )
                 .await
-                .map_err(|e| MailError::Authentication(format!("Login failed: {:?}", e)))?,
+                {
+                    Ok(Ok(session)) => {
+                        println!("デバッグ: OAuth2 IMAP認証が成功しました");
+                        session
+                    }
+                    Ok(Err(e)) => {
+                        println!("デバッグ: OAuth2 IMAP認証エラー: {:?}", e);
+                        return Err(MailError::Authentication(format!(
+                            "OAuth2 IMAP authentication failed: {:?}. トークンが期限切れの可能性があります。再認証を試してください。",
+                            e
+                        )));
+                    }
+                    Err(_) => {
+                        println!("デバッグ: OAuth2 IMAP認証がタイムアウトしました (10秒)");
+                        return Err(MailError::Authentication(
+                            "OAuth2 IMAP authentication timeout (10 seconds). ネットワーク接続またはサーバーの問題の可能性があります。".to_string()
+                        ));
+                    }
+                }
+            }
+            AuthMethod::Plain | AuthMethod::Login => {
+                println!("デバッグ: 基本認証を試行中...");
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    client.login(&imap_config.username, &imap_config.password),
+                )
+                .await
+                .map_err(|_| MailError::Authentication("Login timeout (30 seconds)".to_string()))?
+                .map_err(|e| MailError::Authentication(format!("Login failed: {:?}", e)))?
+            }
             AuthMethod::CramMd5 => {
                 return Err(MailError::Authentication(
                     "CRAM-MD5 not implemented".to_string(),
@@ -62,6 +158,7 @@ impl ImapClient {
             }
         };
 
+        println!("デバッグ: 認証が完了しました");
         self.session = Some(session);
         Ok(())
     }
@@ -409,5 +506,35 @@ impl Drop for ImapClient {
         if self.session.is_some() {
             // 実際の実装では適切な切断処理が必要
         }
+    }
+}
+
+// OAuth2 Authenticator の実装
+struct XOAuth2Authenticator {
+    auth_string: String,
+}
+
+impl XOAuth2Authenticator {
+    fn new(email: &str, access_token: &str) -> Self {
+        let auth_string = format!("user={}\x01auth=Bearer {}\x01\x01", email, access_token);
+        let auth_string_b64 = general_purpose::STANDARD.encode(auth_string.as_bytes());
+
+        Self {
+            auth_string: auth_string_b64,
+        }
+    }
+
+    fn new_with_string(auth_string: String) -> Self {
+        Self { auth_string }
+    }
+}
+
+impl Authenticator for XOAuth2Authenticator {
+    type Response = String;
+
+    #[allow(unused_variables)]
+    fn process(&mut self, challenge: &[u8]) -> Self::Response {
+        // XOAUTH2では、最初のレスポンスでbase64エンコードされた認証情報を送信
+        self.auth_string.clone()
     }
 }

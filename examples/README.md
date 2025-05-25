@@ -1,105 +1,203 @@
-# Configuration Examples
+# RustMail Configuration Examples
 
 This directory contains sample configuration files for various email providers and use cases.
 
-## Quick Setup
+## 📋 Configuration File Structure
 
-1. Choose the appropriate configuration file for your email provider
-2. Copy it to `~/.config/rustmail/config.json`
-3. Replace placeholder values with your actual credentials
-4. Restart Rustmail
+RustMail configuration files consist of four main sections:
 
-## Available Configuration Files
+```json
+{
+  "app": { /* Application settings */ },
+  "ui": { /* User interface settings */ },
+  "keybindings": { /* Keyboard shortcuts */ },
+  "accounts": [ /* Array of email account configurations */ ]
+}
+```
 
-### `config.sample.json`
-Basic configuration template with Gmail OAuth2 setup. Good starting point for most users.
+## 🗂️ Sample Files
 
-**Use case:** Single Gmail account with OAuth2 authentication
+### 📧 `config.sample.json` - Basic Gmail OAuth2 Setup
+Basic OAuth2 configuration sample for Gmail accounts.
 
-### `config.multi-account.json`
-Multi-account configuration supporting Gmail, Yahoo, Outlook, and enterprise email.
+**Usage:**
+1. Create OAuth2 client ID in Google Cloud Console
+2. Replace `YOUR_GOOGLE_CLIENT_ID` and `YOUR_GOOGLE_CLIENT_SECRET` with actual values
+3. Replace `your.email@gmail.com` with your actual Gmail address
+4. Copy to `~/.config/rustmail/config.json`
 
-**Use case:** Multiple email accounts from different providers
+### 👥 `config.multi-account.json` - Multi-Account Setup
+Configuration with Gmail (OAuth2), enterprise email (Login), and Yahoo Mail (Login).
 
-### `config.enterprise.json`
-Enterprise-focused configuration with optimized settings for corporate environments.
+**Features:**
+- Gmail: OAuth2 authentication (automatically uses Gmail API)
+- Enterprise email: Login authentication (app password)
+- Yahoo Mail: Login authentication (disabled by default)
 
-**Use case:** Corporate/business email accounts
+### 🏢 `config.enterprise.json` - Enterprise Email Setup
+Configuration samples for Office 365 and on-premises Exchange Server.
 
-### `config.icloud.json`
-iCloud Mail specific configuration.
+**Targets:**
+- Microsoft Office 365
+- On-premises Exchange Server (domain authentication)
 
-**Use case:** Apple iCloud email accounts
+### 🍎 `config.icloud.json` - iCloud Mail Setup
+Configuration samples for Apple iCloud Mail (@icloud.com, @me.com).
 
-## Setup Instructions
+**Note:** iCloud requires app-specific passwords when 2FA is enabled.
 
-### For Gmail (OAuth2)
-1. Copy `config.sample.json` or extract the Gmail section from `config.multi-account.json`
-2. Follow the OAuth2 setup guide in the main README.md
-3. Replace `YOUR_GOOGLE_CLIENT_ID` and `YOUR_GOOGLE_CLIENT_SECRET` with your actual values
+## ⚙️ Configuration Sections
 
-### For Yahoo Mail
-1. Copy the Yahoo section from `config.multi-account.json`
-2. Generate an app password in Yahoo Account Security settings
-3. Replace `YOUR_YAHOO_APP_PASSWORD` with the generated app password
+### 📱 App Section
+```json
+{
+  "check_interval": 5,                    // Email check interval (minutes)
+  "max_messages_per_folder": 1000,        // Max messages per folder
+  "auto_mark_read": false,                // Auto-mark messages as read
+  "download_attachments": false,          // Auto-download attachments
+  "data_dir": "~/.config/rustmail",       // Data directory
+  "log_level": "info"                     // Log level (debug/info/warn/error)
+}
+```
 
-### For Outlook/Hotmail
-1. Copy the Outlook section from `config.multi-account.json`
-2. Generate an app password in Microsoft Account Security settings
-3. Replace `YOUR_OUTLOOK_APP_PASSWORD` with the generated app password
+### 🎨 UI Section
+```json
+{
+  "theme": "default",                     // Theme name
+  "show_thread_tree": true,               // Show thread view
+  "show_preview_pane": true,              // Show preview pane
+  "date_format": "%Y-%m-%d",              // Date format
+  "time_format": "%H:%M",                 // Time format
+  "folder_pane_width": 20,                // Folder pane width (%)
+  "message_list_height": 50               // Message list height (%)
+}
+```
 
-### For iCloud Mail
-1. Copy `config.icloud.json`
-2. Generate an app password in Apple ID Account Security settings
-3. Replace `YOUR_ICLOUD_APP_PASSWORD` with the generated app password
+### ⌨️ Keybindings Section
+```json
+{
+  "quit": "q",                           // Quit application
+  "up": "k", "down": "j",                // Navigate up/down (vim-style)
+  "left": "h", "right": "l",             // Navigate left/right
+  "compose": "c",                        // Compose email
+  "reply": "r", "reply_all": "R",        // Reply/Reply all
+  "delete": "d",                         // Delete
+  "search": "/",                         // Search
+  "refresh": "g"                         // Refresh
+}
+```
 
-### For Enterprise Email
-1. Copy `config.enterprise.json`
-2. Replace server settings with your company's email server details
-3. Replace credentials with your actual username/password
+### 📬 Accounts Section
+Each account has the following structure:
 
-## Configuration Parameters
+```json
+{
+  "id": "unique_account_id",             // Unique account identifier
+  "name": "Display Name",                // Display name
+  "email": "user@example.com",           // Email address
+  "imap": { /* IMAP settings */ },
+  "smtp": { /* SMTP settings */ },
+  "signature": "Signature text",          // Email signature
+  "default_folder": "INBOX",             // Default folder
+  "enabled": true,                       // Account enabled/disabled
+  "oauth_config": { /* OAuth2 config */ }, // Only for OAuth2
+  "tokens": null                         // OAuth2 tokens (auto-generated)
+}
+```
 
-### App Settings
-- `check_interval`: How often to check for new emails (in minutes)
-- `max_messages_per_folder`: Maximum number of messages to load per folder
-- `auto_mark_read`: Automatically mark emails as read when opened
-- `download_attachments`: Automatically download attachments
-- `data_dir`: Directory to store application data
-- `log_level`: Logging level (debug, info, warn, error)
+## 🔐 Authentication Methods
 
-### UI Settings
-- `theme`: UI theme (currently only "default" supported)
-- `show_thread_tree`: Show email threading
-- `show_preview_pane`: Show email preview pane
-- `date_format`: Date display format
-- `time_format`: Time display format
-- `folder_pane_width`: Width of folder pane (percentage)
-- `message_list_height`: Height of message list (percentage)
+### OAuth2 (Recommended - Gmail)
+```json
+{
+  "auth_method": "OAuth2",
+  "oauth_config": {
+    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:8080/oauth/callback"
+  }
+}
+```
 
-### Account Settings
-- `id`: Unique identifier for the account
-- `name`: Display name for the account
-- `email`: Email address
-- `imap`: IMAP server configuration
-- `smtp`: SMTP server configuration
-- `oauth_config`: OAuth2 configuration (for Gmail)
+### Login/Plain (App Passwords)
+```json
+{
+  "auth_method": "Login",  // or "Plain"
+  "username": "user@example.com",
+  "password": "app_specific_password"
+}
+```
 
-## Security Notes
+## 📂 Folder Configuration
 
-1. **Never commit actual credentials** to version control
-2. **Use app passwords** instead of regular passwords when possible
-3. **Prefer OAuth2** over password authentication (especially for Gmail)
-4. **Set proper file permissions**: `chmod 600 ~/.config/rustmail/config.json`
-5. **Regularly update app passwords** for security
+Configure folder mappings in each account's IMAP section:
 
-## Troubleshooting
+```json
+{
+  "folders": [
+    {
+      "folder_type": "Inbox",            // Internal system type
+      "server_name": "INBOX",            // Server folder name
+      "local_name": "Inbox"              // Local display name
+    }
+  ]
+}
+```
+
+### Main folder_type Values
+- `Inbox`: Inbox
+- `Sent`: Sent items
+- `Drafts`: Draft messages
+- `Trash`: Deleted messages
+
+### Provider-Specific Folder Names
+| Provider | Sent | Drafts | Trash |
+|----------|------|--------|-------|
+| Gmail | `[Gmail]/Sent Mail` | `[Gmail]/Drafts` | `[Gmail]/Trash` |
+| Yahoo | `Sent` | `Draft` | `Trash` |
+| Outlook | `Sent Items` | `Drafts` | `Deleted Items` |
+| iCloud | `Sent Messages` | `Drafts` | `Deleted Messages` |
+
+## 🚀 Getting Started
+
+1. **Choose Sample**: Select appropriate sample file for your email provider
+2. **Edit Configuration**: Replace placeholder values with actual account information
+3. **Copy File**: Place as `~/.config/rustmail/config.json`
+4. **OAuth2 Setup**: For Gmail, configure client in Google Cloud Console
+5. **First Run**: Execute `cargo run` for initial OAuth2 authentication
+
+## 💡 Tips
+
+- **Gmail Priority**: Gmail accounts automatically use Gmail API (faster & more reliable)
+- **App Passwords**: Use app-specific passwords when 2FA is enabled
+- **Multiple Accounts**: Add multiple configurations to the `accounts` array
+- **Disable Accounts**: Set `"enabled": false` to temporarily disable accounts
+
+## 🔒 Security Considerations
+
+- Passwords and tokens are stored in plaintext (encryption planned for future)
+- Keep OAuth2 client_secret secure and private
+- Set appropriate file permissions: `chmod 600 ~/.config/rustmail/config.json`
+- Use app-specific passwords instead of main account passwords
+- Regularly rotate app passwords for better security
+
+## 🛠️ Troubleshooting
 
 If you encounter issues:
-1. Verify your credentials are correct
-2. Check server settings (hostname, port, TLS/STARTTLS)
-3. Ensure app passwords are enabled (for Yahoo, Outlook, iCloud)
-4. For Gmail OAuth2, verify your Google Cloud Console setup
-5. Check the application logs for detailed error messages
 
-For more detailed troubleshooting, see the main README.md file. 
+1. **Verify Credentials**: Ensure usernames, passwords, and app passwords are correct
+2. **Check Server Settings**: Verify hostnames, ports, and TLS/STARTTLS settings
+3. **App Passwords**: For Yahoo, Outlook, and iCloud, ensure app passwords are enabled
+4. **Gmail OAuth2**: Verify Google Cloud Console configuration and redirect URI
+5. **Check Logs**: Set `"log_level": "debug"` for detailed error messages
+6. **Network Issues**: Ensure firewall allows connections to email servers
+7. **2FA Settings**: Disable 2FA temporarily if using regular passwords (not recommended)
+
+### Common Issues
+
+- **Gmail IMAP timeout**: Gmail accounts automatically fallback to Gmail API
+- **Wrong folder names**: Check provider-specific folder names in the table above
+- **Authentication errors**: Verify app passwords are generated correctly
+- **Connection refused**: Check server hostnames and ports
+
+For detailed setup instructions, see the main README.md file in the project root. 

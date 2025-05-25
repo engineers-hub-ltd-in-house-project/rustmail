@@ -2,7 +2,7 @@
   "app": {
     "check_interval": 10,
     "max_messages_per_folder": 500,
-    "auto_mark_read": true,
+    "auto_mark_read": false,
     "download_attachments": true,
     "data_dir": "~/.config/rustmail",
     "log_level": "warn"
@@ -16,29 +16,127 @@
     "folder_pane_width": 25,
     "message_list_height": 60
   },
+  "keybindings": {
+    "quit": "q",
+    "up": "k",
+    "down": "j",
+    "left": "h",
+    "right": "l",
+    "enter": "Enter",
+    "compose": "c",
+    "reply": "r",
+    "reply_all": "R",
+    "forward": "f",
+    "delete": "d",
+    "search": "/",
+    "mark_read": "m",
+    "mark_unread": "u",
+    "flag": "F",
+    "archive": "a",
+    "next_account": "n",
+    "prev_account": "p",
+    "refresh": "g"
+  },
   "accounts": [
     {
-      "id": "enterprise",
-      "name": "Enterprise Account",
-      "email": "firstname.lastname@company.com",
+      "id": "office365",
+      "name": "Office 365 Work Account",
+      "email": "your.name@company.com",
       "imap": {
-        "server": "mail.company.com",
+        "server": "outlook.office365.com",
         "port": 993,
-        "username": "firstname.lastname@company.com",
-        "password": "YOUR_ENTERPRISE_PASSWORD",
+        "username": "your.name@company.com",
+        "password": "YOUR_APP_PASSWORD",
         "use_tls": true,
         "use_starttls": false,
-        "auth_method": "Plain"
+        "auth_method": "Login",
+        "folders": [
+          {
+            "folder_type": "Inbox",
+            "server_name": "INBOX",
+            "local_name": "Inbox"
+          },
+          {
+            "folder_type": "Sent",
+            "server_name": "Sent Items",
+            "local_name": "Sent Items"
+          },
+          {
+            "folder_type": "Drafts",
+            "server_name": "Drafts",
+            "local_name": "Drafts"
+          },
+          {
+            "folder_type": "Trash",
+            "server_name": "Deleted Items",
+            "local_name": "Deleted Items"
+          }
+        ]
       },
       "smtp": {
-        "server": "mail.company.com",
+        "server": "smtp-mail.outlook.com",
         "port": 587,
-        "username": "firstname.lastname@company.com",
-        "password": "YOUR_ENTERPRISE_PASSWORD",
+        "username": "your.name@company.com",
+        "password": "YOUR_APP_PASSWORD",
         "use_tls": false,
         "use_starttls": true,
-        "auth_method": "Plain"
-      }
+        "auth_method": "Login"
+      },
+      "signature": "--\nBest regards,\nYour Name\nCompany Name\nPhone: +1-234-567-8900\nEmail: your.name@company.com",
+      "default_folder": "INBOX",
+      "enabled": true,
+      "oauth_config": null,
+      "tokens": null
+    },
+    {
+      "id": "exchange",
+      "name": "Exchange Server",
+      "email": "user@enterprise.local",
+      "imap": {
+        "server": "mail.enterprise.local",
+        "port": 993,
+        "username": "DOMAIN\\username",
+        "password": "YOUR_DOMAIN_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Login",
+        "folders": [
+          {
+            "folder_type": "Inbox",
+            "server_name": "INBOX",
+            "local_name": "Inbox"
+          },
+          {
+            "folder_type": "Sent",
+            "server_name": "Sent Items",
+            "local_name": "Sent Items"
+          },
+          {
+            "folder_type": "Drafts",
+            "server_name": "Drafts",
+            "local_name": "Drafts"
+          },
+          {
+            "folder_type": "Trash",
+            "server_name": "Deleted Items",
+            "local_name": "Deleted Items"
+          }
+        ]
+      },
+      "smtp": {
+        "server": "mail.enterprise.local",
+        "port": 587,
+        "username": "DOMAIN\\username",
+        "password": "YOUR_DOMAIN_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Login"
+      },
+      "signature": "--\nRegards,\nUsername\nEnterprise Corporation\nInternal Extension: x1234",
+      "default_folder": "INBOX",
+      "enabled": true,
+      "oauth_config": null,
+      "tokens": null
     }
   ]
 }

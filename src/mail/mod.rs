@@ -1,5 +1,6 @@
 pub mod account;
 pub mod client;
+pub mod gmail_api;
 pub mod imap_client;
 pub mod message;
 pub mod oauth;
@@ -7,6 +8,7 @@ pub mod smtp_client;
 
 pub use account::{Account, AuthMethod, FolderMapping, FolderType, ImapConfig, SmtpConfig};
 pub use client::MailClient;
+pub use gmail_api::GmailApiClient;
 pub use imap_client::ImapClient;
 pub use message::{Address, Flag, Message, MessageBody};
 pub use oauth::{

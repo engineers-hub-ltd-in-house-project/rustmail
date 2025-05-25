@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 
 use super::oauth::{GoogleOAuthClient, OAuthFlowManager};
-use super::{Account, ImapClient, MailError, MailResult, Message, SmtpClient};
+use super::{Account, GmailApiClient, ImapClient, MailError, MailResult, Message, SmtpClient};
 
 pub struct MailClient {
     accounts: Vec<Account>,
     imap_connections: Mutex<HashMap<String, ImapClient>>,
     smtp_connections: Mutex<HashMap<String, SmtpClient>>,
     oauth_flow_manager: Mutex<OAuthFlowManager>,
+    gmail_api_clients: Mutex<HashMap<String, GmailApiClient>>,
 }
 
 impl MailClient {
@@ -18,6 +19,7 @@ impl MailClient {
             imap_connections: Mutex::new(HashMap::new()),
             smtp_connections: Mutex::new(HashMap::new()),
             oauth_flow_manager: Mutex::new(OAuthFlowManager::new()),
+            gmail_api_clients: Mutex::new(HashMap::new()),
         }
     }
 
@@ -157,13 +159,72 @@ impl MailClient {
             .get_account(account_id)
             .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
 
+        // Gmailアカウントの場合は最初からGmail APIクライアントを使用
+        if self.is_gmail_account(&account.email) {
+            println!(
+                "デバッグ: Gmailアカウントを検出しました。Gmail APIクライアントを使用します。"
+            );
+
+            let gmail_client = GmailApiClient::new(account.clone());
+            match gmail_client.connect().await {
+                Ok(_) => {
+                    println!("デバッグ: Gmail API接続が成功しました");
+                    let mut gmail_clients = self.gmail_api_clients.lock().await;
+                    gmail_clients.insert(account_id.to_string(), gmail_client);
+                    return Ok(());
+                }
+                Err(e) => {
+                    println!("デバッグ: Gmail API接続に失敗しました: {:?}", e);
+                    return Err(MailError::Connection(format!(
+                        "Gmail API connection failed: {}",
+                        e
+                    )));
+                }
+            }
+        }
+
+        // Gmail以外のアカウントの場合はIMAPを使用
+        println!("デバッグ: 非Gmailアカウントです。IMAPクライアントを使用します。");
         let mut imap_client = ImapClient::new(account.clone());
-        imap_client.connect().await?;
+        match imap_client.connect().await {
+            Ok(_) => {
+                println!("デバッグ: IMAP接続が成功しました");
+                let mut connections = self.imap_connections.lock().await;
+                connections.insert(account_id.to_string(), imap_client);
+                Ok(())
+            }
+            Err(MailError::Authentication(ref msg)) if msg.contains("timeout") => {
+                println!("デバッグ: IMAP OAuth2認証がタイムアウトしました。Gmail APIクライアントを試行します。");
 
-        let mut connections = self.imap_connections.lock().await;
-        connections.insert(account_id.to_string(), imap_client);
+                // Gmail APIクライアントを作成して接続テスト
+                let gmail_client = GmailApiClient::new(account.clone());
+                match gmail_client.connect().await {
+                    Ok(_) => {
+                        println!("デバッグ: Gmail API接続が成功しました");
+                        let mut gmail_clients = self.gmail_api_clients.lock().await;
+                        gmail_clients.insert(account_id.to_string(), gmail_client);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        println!("デバッグ: Gmail API接続も失敗しました: {:?}", e);
+                        Err(MailError::Connection(format!(
+                            "IMAP OAuth2 timeout and Gmail API connection also failed: {}",
+                            e
+                        )))
+                    }
+                }
+            }
+            Err(e) => {
+                println!("デバッグ: IMAP接続に失敗しました: {:?}", e);
+                Err(e)
+            }
+        }
+    }
 
-        Ok(())
+    /// Gmailアカウントかどうかを判定
+    fn is_gmail_account(&self, email: &str) -> bool {
+        let email_lower = email.to_lowercase();
+        email_lower.ends_with("@gmail.com") || email_lower.ends_with("@googlemail.com")
     }
 
     /// SMTPサーバーに接続
@@ -206,11 +267,22 @@ impl MailClient {
         folder: &str,
         limit: Option<usize>,
     ) -> MailResult<Vec<Message>> {
-        let mut connections = self.imap_connections.lock().await;
-        let client = connections
-            .get_mut(account_id)
-            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+        // まずGmail APIクライアントが利用可能かチェック
+        {
+            let gmail_clients = self.gmail_api_clients.lock().await;
+            if let Some(gmail_client) = gmail_clients.get(account_id) {
+                println!("デバッグ: Gmail APIクライアントを使用してメッセージを取得します");
+                return gmail_client.fetch_messages(folder, limit).await;
+            }
+        }
 
+        // Gmail APIクライアントがない場合はIMAPクライアントを使用
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections.get_mut(account_id).ok_or_else(|| {
+            MailError::Connection("IMAP not connected and Gmail API not available".to_string())
+        })?;
+
+        println!("デバッグ: IMAPクライアントを使用してメッセージを取得します");
         client.fetch_messages(folder, limit).await
     }
 
@@ -305,11 +377,22 @@ impl MailClient {
 
     /// フォルダー一覧を取得
     pub async fn get_folders(&self, account_id: &str) -> MailResult<Vec<String>> {
-        let mut connections = self.imap_connections.lock().await;
-        let client = connections
-            .get_mut(account_id)
-            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+        // まずGmail APIクライアントが利用可能かチェック
+        {
+            let gmail_clients = self.gmail_api_clients.lock().await;
+            if let Some(gmail_client) = gmail_clients.get(account_id) {
+                println!("デバッグ: Gmail APIクライアントを使用してフォルダー一覧を取得します");
+                return gmail_client.list_folders().await;
+            }
+        }
 
+        // Gmail APIクライアントがない場合はIMAPクライアントを使用
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections.get_mut(account_id).ok_or_else(|| {
+            MailError::Connection("IMAP not connected and Gmail API not available".to_string())
+        })?;
+
+        println!("デバッグ: IMAPクライアントを使用してフォルダー一覧を取得します");
         client.list_folders().await
     }
 
