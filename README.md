@@ -236,7 +236,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [mew](https://www.mew.org/) - Inspiration for the user interface design
+- **[Mew](https://www.mew.org/ja/)** - Our primary inspiration. Mew is an excellent email client for Emacs developed by Kazuhiko Yamamoto since 1994. Its elegant design philosophy, efficient keyboard-driven interface, and long-standing commitment to user experience have been the guiding principles for Rustmail's development. We deeply respect the decades of innovation and refinement that Mew represents in the email client ecosystem.
 - [ratatui](https://ratatui.rs/) - Excellent TUI framework for Rust
 - [crossterm](https://github.com/crossterm-rs/crossterm) - Cross-platform terminal library
 - The Rust community for their amazing ecosystem
