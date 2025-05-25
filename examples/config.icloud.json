@@ -1,0 +1,142 @@
+{
+  "app": {
+    "check_interval": 5,
+    "max_messages_per_folder": 1000,
+    "auto_mark_read": false,
+    "download_attachments": false,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "info"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 20,
+    "message_list_height": 50
+  },
+  "keybindings": {
+    "quit": "q",
+    "up": "k",
+    "down": "j",
+    "left": "h",
+    "right": "l",
+    "enter": "Enter",
+    "compose": "c",
+    "reply": "r",
+    "reply_all": "R",
+    "forward": "f",
+    "delete": "d",
+    "search": "/",
+    "mark_read": "m",
+    "mark_unread": "u",
+    "flag": "F",
+    "archive": "a",
+    "next_account": "n",
+    "prev_account": "p",
+    "refresh": "g"
+  },
+  "accounts": [
+    {
+      "id": "icloud",
+      "name": "iCloud Mail",
+      "email": "your.email@icloud.com",
+      "imap": {
+        "server": "imap.mail.me.com",
+        "port": 993,
+        "username": "your.email@icloud.com",
+        "password": "YOUR_APP_SPECIFIC_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Login",
+        "folders": [
+          {
+            "folder_type": "Inbox",
+            "server_name": "INBOX",
+            "local_name": "Inbox"
+          },
+          {
+            "folder_type": "Sent",
+            "server_name": "Sent Messages",
+            "local_name": "Sent"
+          },
+          {
+            "folder_type": "Drafts",
+            "server_name": "Drafts",
+            "local_name": "Drafts"
+          },
+          {
+            "folder_type": "Trash",
+            "server_name": "Deleted Messages",
+            "local_name": "Trash"
+          }
+        ]
+      },
+      "smtp": {
+        "server": "smtp.mail.me.com",
+        "port": 587,
+        "username": "your.email@icloud.com",
+        "password": "YOUR_APP_SPECIFIC_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Login"
+      },
+      "signature": "--\nSent from my Mac",
+      "default_folder": "INBOX",
+      "enabled": true,
+      "oauth_config": null,
+      "tokens": null
+    },
+    {
+      "id": "me",
+      "name": "Apple @me.com",
+      "email": "your.email@me.com",
+      "imap": {
+        "server": "imap.mail.me.com",
+        "port": 993,
+        "username": "your.email@me.com",
+        "password": "YOUR_APP_SPECIFIC_PASSWORD",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "Login",
+        "folders": [
+          {
+            "folder_type": "Inbox",
+            "server_name": "INBOX",
+            "local_name": "Inbox"
+          },
+          {
+            "folder_type": "Sent",
+            "server_name": "Sent Messages",
+            "local_name": "Sent"
+          },
+          {
+            "folder_type": "Drafts",
+            "server_name": "Drafts",
+            "local_name": "Drafts"
+          },
+          {
+            "folder_type": "Trash",
+            "server_name": "Deleted Messages",
+            "local_name": "Trash"
+          }
+        ]
+      },
+      "smtp": {
+        "server": "smtp.mail.me.com",
+        "port": 587,
+        "username": "your.email@me.com",
+        "password": "YOUR_APP_SPECIFIC_PASSWORD",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "Login"
+      },
+      "signature": "--\nSent from iPhone",
+      "default_folder": "INBOX",
+      "enabled": false,
+      "oauth_config": null,
+      "tokens": null
+    }
+  ]
+}
