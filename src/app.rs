@@ -9,6 +9,7 @@ pub enum AppMode {
     MailList,
     MailView,
     Compose,
+    Help,
     #[allow(dead_code)]
     Settings,
 }
@@ -24,6 +25,7 @@ pub enum InputMode {
 pub struct App {
     pub should_quit: bool,
     pub mode: AppMode,
+    pub previous_mode: Option<AppMode>,
     pub input_mode: InputMode,
     pub mail_list_state: ratatui::widgets::ListState,
     pub folder_list_state: ratatui::widgets::ListState,
@@ -43,6 +45,7 @@ impl Default for App {
         let mut app = Self {
             should_quit: false,
             mode: AppMode::MailList,
+            previous_mode: None,
             input_mode: InputMode::Normal,
             mail_list_state: ratatui::widgets::ListState::default(),
             folder_list_state: ratatui::widgets::ListState::default(),
@@ -73,6 +76,19 @@ impl App {
         self.should_quit = true;
     }
 
+    pub fn show_help(&mut self) {
+        if self.mode != AppMode::Help {
+            self.previous_mode = Some(self.mode.clone());
+            self.mode = AppMode::Help;
+        }
+    }
+
+    pub fn hide_help(&mut self) {
+        if self.mode == AppMode::Help {
+            self.mode = self.previous_mode.take().unwrap_or(AppMode::MailList);
+        }
+    }
+
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<(), Box<dyn Error>> {
         match self.input_mode {
             InputMode::Normal => self.handle_normal_key_event(key_event),
@@ -85,6 +101,7 @@ impl App {
         match self.mode {
             AppMode::MailList => match key_event.code {
                 KeyCode::Char('q') => self.quit(),
+                KeyCode::Char('h') => self.show_help(),
                 KeyCode::Char('j') | KeyCode::Down => self.select_next_mail(),
                 KeyCode::Char('k') | KeyCode::Up => self.select_previous_mail(),
                 KeyCode::Enter => self.open_selected_mail(),
@@ -101,6 +118,7 @@ impl App {
             },
             AppMode::MailView => match key_event.code {
                 KeyCode::Char('q') | KeyCode::Esc => self.mode = AppMode::MailList,
+                KeyCode::Char('h') => self.show_help(),
                 KeyCode::Char('r') => self.reply_to_current_mail(),
                 KeyCode::Char('R') => self.reply_all_to_current_mail(),
                 KeyCode::Char('f') => self.forward_current_mail(),
@@ -109,7 +127,14 @@ impl App {
             },
             AppMode::Compose => match key_event.code {
                 KeyCode::Esc => self.mode = AppMode::MailList,
+                KeyCode::Char('h') => self.show_help(),
                 KeyCode::F(10) => self.send_composed_mail(),
+                _ => {}
+            },
+            AppMode::Help => match key_event.code {
+                KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('h') => {
+                    self.hide_help();
+                }
                 _ => {}
             },
             _ => {}

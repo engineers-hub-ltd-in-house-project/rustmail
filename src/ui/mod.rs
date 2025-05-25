@@ -20,6 +20,7 @@ pub fn render_ui(f: &mut Frame, app: &mut App) {
         AppMode::MailList => render_mail_list(f, app, size),
         AppMode::MailView => render_mail_view(f, app, size),
         AppMode::Compose => render_compose(f, app, size),
+        AppMode::Help => render_help(f, app, size),
         AppMode::Settings => render_settings(f, app, size),
     }
 }
@@ -107,6 +108,56 @@ fn render_compose(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_settings(f: &mut Frame, _app: &mut App, area: Rect) {
     let block = Block::default().title("設定").borders(Borders::ALL);
     let paragraph = Paragraph::new("設定機能は未実装です").block(block);
+    f.render_widget(paragraph, area);
+}
+
+fn render_help(f: &mut Frame, _app: &mut App, area: Rect) {
+    let help_text = vec![
+        "RustMail - ヘルプ",
+        "",
+        "■ 基本操作",
+        "  h      : このヘルプを表示",
+        "  q      : アプリケーションを終了",
+        "  Esc    : 前の画面に戻る",
+        "",
+        "■ メール一覧画面",
+        "  j/↓    : 次のメールを選択",
+        "  k/↑    : 前のメールを選択",
+        "  Enter  : 選択したメールを開く",
+        "  c      : 新しいメールを作成",
+        "  r      : 返信",
+        "  R      : 全員に返信",
+        "  f      : 転送",
+        "  d      : 削除",
+        "  /      : 検索",
+        "",
+        "■ メール表示画面",
+        "  q/Esc  : メール一覧に戻る",
+        "  r      : 返信",
+        "  R      : 全員に返信",
+        "  f      : 転送",
+        "  d      : 削除",
+        "",
+        "■ 作成画面",
+        "  Esc    : メール一覧に戻る",
+        "  F10    : メールを送信",
+        "",
+        "■ 検索画面",
+        "  Enter  : 検索実行",
+        "  Esc    : 検索をキャンセル",
+        "",
+        "ヘルプを閉じるには h, q, または Esc キーを押してください",
+    ];
+
+    let paragraph = Paragraph::new(help_text.join("\n"))
+        .block(
+            Block::default()
+                .title("ヘルプ - RustMail")
+                .borders(Borders::ALL),
+        )
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+
     f.render_widget(paragraph, area);
 }
 
