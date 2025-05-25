@@ -41,6 +41,370 @@ cargo run
 ./target/release/rustmail
 ```
 
+## 📋 Detailed Setup Guide
+
+### 1. First Setup
+
+1. **Clone the project and build**
+   ```bash
+   git clone https://github.com/your-username/rustmail.git
+   cd rustmail
+   cargo build --release
+   ```
+
+2. **Create the configuration directory**
+   ```bash
+   mkdir -p ~/.config/rustmail
+   ```
+
+3. **Copy the configuration file**
+   Save the following template as `~/.config/rustmail/config.json`.
+
+### 2. Configuration File Template
+
+#### Basic Template (Gmail + General SMTP)
+```json
+{
+  "app": {
+    "check_interval": 5,
+    "max_messages_per_folder": 1000,
+    "auto_mark_read": false,
+    "download_attachments": false,
+    "data_dir": "~/.config/rustmail",
+    "log_level": "info"
+  },
+  "ui": {
+    "theme": "default",
+    "show_thread_tree": true,
+    "show_preview_pane": true,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "folder_pane_width": 20,
+    "message_list_height": 50
+  },
+  "accounts": [
+    {
+      "id": "main",
+      "name": "Main Account",
+      "email": "your-email@gmail.com",
+      "imap": {
+        "server": "imap.gmail.com",
+        "port": 993,
+        "username": "your-email@gmail.com",
+        "use_tls": true,
+        "use_starttls": false,
+        "auth_method": "OAuth2"
+      },
+      "smtp": {
+        "server": "smtp.gmail.com",
+        "port": 587,
+        "username": "your-email@gmail.com",
+        "use_tls": false,
+        "use_starttls": true,
+        "auth_method": "OAuth2"
+      },
+      "oauth_config": {
+        "client_id": "YOUR_GOOGLE_CLIENT_ID",
+        "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "redirect_uri": "http://localhost:8080/oauth/callback"
+      }
+    }
+  ]
+}
+```
+
+### 3. Email Provider Specific Configuration Examples
+
+#### Gmail (OAuth2 Recommended)
+```json
+{
+  "id": "gmail",
+  "name": "Gmail Account",
+  "email": "user@gmail.com",
+  "imap": {
+    "server": "imap.gmail.com",
+    "port": 993,
+    "username": "user@gmail.com",
+    "use_tls": true,
+    "use_starttls": false,
+    "auth_method": "OAuth2"
+  },
+  "smtp": {
+    "server": "smtp.gmail.com",
+    "port": 587,
+    "username": "user@gmail.com",
+    "use_tls": false,
+    "use_starttls": true,
+    "auth_method": "OAuth2"
+  },
+  "oauth_config": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID",
+    "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:8080/oauth/callback"
+  }
+}
+```
+
+#### Yahoo Mail
+```json
+{
+  "id": "yahoo",
+  "name": "Yahoo Mail",
+  "email": "user@yahoo.com",
+  "imap": {
+    "server": "imap.mail.yahoo.com",
+    "port": 993,
+    "username": "user@yahoo.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": true,
+    "use_starttls": false,
+    "auth_method": "Plain"
+  },
+  "smtp": {
+    "server": "smtp.mail.yahoo.com",
+    "port": 587,
+    "username": "user@yahoo.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": false,
+    "use_starttls": true,
+    "auth_method": "Plain"
+  }
+}
+```
+
+#### Outlook/Hotmail
+```json
+{
+  "id": "outlook",
+  "name": "Outlook Account",
+  "email": "user@outlook.com",
+  "imap": {
+    "server": "outlook.office365.com",
+    "port": 993,
+    "username": "user@outlook.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": true,
+    "use_starttls": false,
+    "auth_method": "Plain"
+  },
+  "smtp": {
+    "server": "smtp-mail.outlook.com",
+    "port": 587,
+    "username": "user@outlook.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": false,
+    "use_starttls": true,
+    "auth_method": "Plain"
+  }
+}
+```
+
+#### iCloud Mail
+```json
+{
+  "id": "icloud",
+  "name": "iCloud Mail",
+  "email": "user@icloud.com",
+  "imap": {
+    "server": "imap.mail.me.com",
+    "port": 993,
+    "username": "user@icloud.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": true,
+    "use_starttls": false,
+    "auth_method": "Plain"
+  },
+  "smtp": {
+    "server": "smtp.mail.me.com",
+    "port": 587,
+    "username": "user@icloud.com",
+    "password": "YOUR_APP_PASSWORD",
+    "use_tls": false,
+    "use_starttls": true,
+    "auth_method": "Plain"
+  }
+}
+```
+
+#### General Enterprise Email (Example)
+```json
+{
+  "id": "work",
+  "name": "Work Account",
+  "email": "work@company.com",
+  "imap": {
+    "server": "mail.company.com",
+    "port": 993,
+    "username": "work@company.com",
+    "password": "YOUR_PASSWORD",
+    "use_tls": true,
+    "use_starttls": false,
+    "auth_method": "Plain"
+  },
+  "smtp": {
+    "server": "mail.company.com",
+    "port": 587,
+    "username": "work@company.com",
+    "password": "YOUR_PASSWORD",
+    "use_tls": false,
+    "use_starttls": true,
+    "auth_method": "Plain"
+  }
+}
+```
+
+### 4. OAuth2 Setup (For Gmail)
+
+#### Google Developer Console Configuration
+1. **Access Google Cloud Console**
+   - Access https://console.cloud.google.com/
+   - Create a new project or select an existing one
+
+2. **Enable Gmail API**
+   ```
+   Navigation → API & Services → Libraries
+   → Search for "Gmail API" → Enable
+   ```
+
+3. **Create OAuth2 Credentials**
+   ```
+   API & Services → Credentials → Create Credentials
+   → OAuth 2.0 Client ID → Desktop Application
+   ```
+
+4. **Set Redirect URI**
+   ```
+   Authorized Redirect URIs: http://localhost:8080/oauth/callback
+   ```
+
+5. **Get Client ID and Client Secret**
+   - Copy the Client ID and Client Secret from the created credentials
+   - Paste them into the corresponding parts of `config.json`
+
+#### Adding Test User (For Development)
+```
+OAuth Consent Screen → Test Users → Add Your Gmail Address
+```
+
+### 5. Application Password Configuration
+
+#### Gmail
+1. **Enable Two-Factor Authentication**
+   - Google Account Settings → Security → Two-Factor Authentication Process
+
+2. **Generate Application Password**
+   ```
+   Google Account Settings → Security → App Passwords
+   → Select Email → Generate Password
+   ```
+
+#### Yahoo Mail
+1. **Access Account Security**
+   - Yahoo Mail Settings → Account Information → Account Security
+
+2. **Generate Application Password**
+   ```
+   App Passwords → New App Password
+   → "Other Applications" → "Rustmail"
+   ```
+
+#### Outlook
+1. **Access Microsoft Account**
+   - account.microsoft.com → Security
+
+2. **Create App Password**
+   ```
+   Other Security Options → App Password
+   → New App Password
+   ```
+
+### 6. First Launch and Authentication
+
+1. **Launch the Application**
+   ```bash
+   ./target/release/rustmail
+   ```
+
+2. **OAuth2 Authentication (For Gmail)**
+   - Browser will automatically open
+   - Login with Google Account
+   - Grant Access
+   - Browser will automatically close and return to the application
+
+3. **Configuration Verification**
+   - Verify that the account is recognized correctly in the application
+   - Test if emails are received
+
+### 7. Troubleshooting
+
+#### Common Issues and Solutions
+
+**Issue: "Authentication Error" Occurs**
+```
+Solution:
+1. Verify that the application password is correctly set
+2. Verify if Two-Factor Authentication is enabled
+3. Verify Server Configuration (Host Name, Port)
+```
+
+**Issue: OAuth2 Authentication Fails**
+```
+Solution:
+1. Verify if the project is correctly set up in Google Cloud Console
+2. Verify if the Redirect URI is correctly set
+3. Verify if the Test User is added (For Development)
+```
+
+**Issue: Emails Cannot Be Received**
+```
+Solution:
+1. Verify if IMAP is enabled (For Gmail, check settings)
+2. Verify if the port is not blocked by a firewall
+3. Verify if TLS/STARTTLS Configuration is Correct
+```
+
+**Issue: Emails Cannot Be Sent**
+```
+Solution:
+1. Verify SMTP Configuration
+2. Verify if Sent Limit is Not Hit
+3. Verify Sent Address is Correctly Set
+```
+
+#### Log File Verification
+```bash
+# Set log level to debug for detailed log
+# Change "log_level": "debug" in config.json
+
+# Log File Location
+tail -f ~/.config/rustmail/rustmail.log
+```
+
+#### Configuration File Verification
+```bash
+# JSON File Syntax Check
+python3 -m json.tool ~/.config/rustmail/config.json
+```
+
+### 8. Security Best Practices
+
+1. **Use Application Password**
+   - Use Dedicated App Password Instead of Regular Password
+
+2. **Configuration File Permission Setting**
+   ```bash
+   chmod 600 ~/.config/rustmail/config.json
+   ```
+
+3. **Regular Password Update**
+   - Update Application Password Regularly
+
+4. **TLS/STARTTLS Enablement**
+   - Use Encrypted Connection Always
+
+5. **OAuth2 Utilization**
+   - Use OAuth2 Authentication Whenever Possible (Especially For Gmail)
+
 ## ⌨️ Key Bindings
 
 ### Mail List View
