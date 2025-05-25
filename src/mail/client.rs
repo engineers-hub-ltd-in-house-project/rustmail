@@ -1,34 +1,28 @@
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message as LettreMessage, SmtpTransport, Transport};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
 
-use super::{Account, MailError, MailResult, Message};
+use super::oauth::{GoogleOAuthClient, OAuthFlowManager};
+use super::{Account, ImapClient, MailError, MailResult, Message, SmtpClient};
 
 pub struct MailClient {
     accounts: Vec<Account>,
-    connections: Mutex<HashMap<String, Connection>>,
-}
-
-#[derive(Debug)]
-struct Connection {
-    account_id: String,
-    // 実際の接続情報は後で追加
-    // imap_session: Option<ImapSession>,
-    // smtp_session: Option<SmtpSession>,
+    imap_connections: Mutex<HashMap<String, ImapClient>>,
+    smtp_connections: Mutex<HashMap<String, SmtpClient>>,
+    oauth_flow_manager: Mutex<OAuthFlowManager>,
 }
 
 impl MailClient {
     pub fn new() -> Self {
         Self {
             accounts: Vec::new(),
-            connections: Mutex::new(HashMap::new()),
+            imap_connections: Mutex::new(HashMap::new()),
+            smtp_connections: Mutex::new(HashMap::new()),
+            oauth_flow_manager: Mutex::new(OAuthFlowManager::new()),
         }
     }
 
     pub fn add_account(&mut self, account: Account) -> MailResult<()> {
         account.validate().map_err(MailError::Parse)?;
-
         self.accounts.push(account);
         Ok(())
     }
@@ -48,134 +42,208 @@ impl MailClient {
         self.accounts.iter().find(|a| a.id == account_id)
     }
 
+    pub fn get_account_mut(&mut self, account_id: &str) -> Option<&mut Account> {
+        self.accounts.iter_mut().find(|a| a.id == account_id)
+    }
+
     pub fn get_accounts(&self) -> &[Account] {
         &self.accounts
     }
 
-    pub async fn connect(&self, account_id: &str) -> MailResult<()> {
-        let _account = self
+    /// OAuth2認証フローを開始
+    pub async fn start_oauth_flow(&self, account_id: &str) -> MailResult<String> {
+        let account = self
             .get_account(account_id)
             .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
 
-        // TODO: 実際のIMAP/SMTP接続を実装
-        let connection = Connection {
-            account_id: account_id.to_string(),
-        };
+        let oauth_config = account
+            .oauth_config
+            .as_ref()
+            .ok_or_else(|| MailError::Authentication("No OAuth config".to_string()))?;
 
-        let mut connections = self.connections.lock().await;
-        connections.insert(account_id.to_string(), connection);
+        let oauth_client = GoogleOAuthClient::new(oauth_config.clone()).map_err(|e| {
+            MailError::Authentication(format!("OAuth client creation failed: {}", e))
+        })?;
+
+        let (auth_url, csrf_token) = oauth_client.get_authorization_url();
+
+        let mut flow_manager = self.oauth_flow_manager.lock().await;
+        flow_manager.start_flow(account_id.to_string(), csrf_token);
+
+        Ok(auth_url.to_string())
+    }
+
+    /// OAuth2認証コードを処理
+    pub async fn handle_oauth_callback(
+        &mut self,
+        account_id: &str,
+        authorization_code: String,
+        state: String,
+    ) -> MailResult<()> {
+        // 必要な情報を先に取得
+        let oauth_config = self
+            .get_account(account_id)
+            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?
+            .oauth_config
+            .as_ref()
+            .ok_or_else(|| MailError::Authentication("No OAuth config".to_string()))?
+            .clone();
+
+        // CSRF検証
+        {
+            let mut flow_manager = self.oauth_flow_manager.lock().await;
+            flow_manager
+                .validate_and_complete_flow(account_id, &state)
+                .map_err(|e| MailError::Authentication(e.to_string()))?;
+        }
+
+        // トークン取得
+        let oauth_client = GoogleOAuthClient::new(oauth_config).map_err(|e| {
+            MailError::Authentication(format!("OAuth client creation failed: {}", e))
+        })?;
+
+        let tokens = oauth_client
+            .exchange_code_for_token(authorization_code)
+            .await
+            .map_err(|e| MailError::Authentication(format!("Token exchange failed: {}", e)))?;
+
+        // アカウントにトークンを保存
+        let account = self
+            .get_account_mut(account_id)
+            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        account.tokens = Some(tokens);
 
         Ok(())
     }
 
-    pub async fn disconnect(&self, account_id: &str) -> MailResult<()> {
-        let mut connections = self.connections.lock().await;
-        connections.remove(account_id);
+    /// OAuth2トークンを更新
+    pub async fn refresh_oauth_token(&mut self, account_id: &str) -> MailResult<()> {
+        let account = self
+            .get_account_mut(account_id)
+            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+
+        let oauth_config = account
+            .oauth_config
+            .as_ref()
+            .ok_or_else(|| MailError::Authentication("No OAuth config".to_string()))?;
+
+        let current_tokens = account
+            .tokens
+            .as_ref()
+            .ok_or_else(|| MailError::Authentication("No tokens available".to_string()))?;
+
+        let refresh_token = current_tokens
+            .refresh_token
+            .as_ref()
+            .ok_or_else(|| MailError::Authentication("No refresh token available".to_string()))?;
+
+        let oauth_client = GoogleOAuthClient::new(oauth_config.clone()).map_err(|e| {
+            MailError::Authentication(format!("OAuth client creation failed: {}", e))
+        })?;
+
+        let new_tokens = oauth_client
+            .refresh_access_token(refresh_token.clone())
+            .await
+            .map_err(|e| MailError::Authentication(format!("Token refresh failed: {}", e)))?;
+
+        account.tokens = Some(new_tokens);
+
         Ok(())
     }
 
+    /// IMAPサーバーに接続
+    pub async fn connect_imap(&self, account_id: &str) -> MailResult<()> {
+        let account = self
+            .get_account(account_id)
+            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+
+        let mut imap_client = ImapClient::new(account.clone());
+        imap_client.connect().await?;
+
+        let mut connections = self.imap_connections.lock().await;
+        connections.insert(account_id.to_string(), imap_client);
+
+        Ok(())
+    }
+
+    /// SMTPサーバーに接続
+    pub async fn connect_smtp(&self, account_id: &str) -> MailResult<()> {
+        let account = self
+            .get_account(account_id)
+            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+
+        let mut smtp_client = SmtpClient::new(account.clone());
+        smtp_client.connect().await?;
+
+        let mut connections = self.smtp_connections.lock().await;
+        connections.insert(account_id.to_string(), smtp_client);
+
+        Ok(())
+    }
+
+    /// IMAP接続を切断
+    pub async fn disconnect_imap(&self, account_id: &str) -> MailResult<()> {
+        let mut connections = self.imap_connections.lock().await;
+        if let Some(mut client) = connections.remove(account_id) {
+            client.disconnect().await?;
+        }
+        Ok(())
+    }
+
+    /// SMTP接続を切断
+    pub async fn disconnect_smtp(&self, account_id: &str) -> MailResult<()> {
+        let mut connections = self.smtp_connections.lock().await;
+        if let Some(mut client) = connections.remove(account_id) {
+            client.disconnect();
+        }
+        Ok(())
+    }
+
+    /// メッセージ一覧を取得
     pub async fn fetch_messages(
         &self,
         account_id: &str,
         folder: &str,
         limit: Option<usize>,
     ) -> MailResult<Vec<Message>> {
-        let _account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
 
-        // TODO: 実際のIMAP接続を使ってメッセージを取得
-        // 現在はダミーデータを返す
-        let dummy_messages = self.create_dummy_messages(account_id, folder, limit.unwrap_or(50));
-        Ok(dummy_messages)
+        client.fetch_messages(folder, limit).await
     }
 
+    /// メッセージ本文を取得
     pub async fn fetch_message_body(
         &self,
         account_id: &str,
         message_id: &str,
+        folder: &str,
     ) -> MailResult<String> {
-        let _account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        let uid: u32 = message_id
+            .parse()
+            .map_err(|_| MailError::Parse("Invalid message ID".to_string()))?;
 
-        // TODO: 実際のメッセージ本文取得を実装
-        Ok(format!(
-            "これは {} のメッセージ本文です。\n\n実際のメール内容がここに表示されます。",
-            message_id
-        ))
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+
+        client.fetch_message_body(folder, uid).await
     }
 
+    /// メールを送信
     pub async fn send_message(&self, account_id: &str, message: &Message) -> MailResult<()> {
-        let account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        let mut connections = self.smtp_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("SMTP not connected".to_string()))?;
 
-        let smtp_config = &account.smtp;
-
-        // Lettreメッセージを構築
-        let mut builder = LettreMessage::builder()
-            .from(
-                format!("{} <{}>", account.name, account.email)
-                    .parse()
-                    .map_err(|e| MailError::Parse(format!("Invalid from address: {}", e)))?,
-            )
-            .subject(&message.subject);
-
-        // To recipients
-        for to in &message.to {
-            builder = builder.to(to
-                .email
-                .parse()
-                .map_err(|e| MailError::Parse(format!("Invalid to address: {}", e)))?);
-        }
-
-        // CC recipients
-        for cc in &message.cc {
-            builder = builder.cc(cc
-                .email
-                .parse()
-                .map_err(|e| MailError::Parse(format!("Invalid cc address: {}", e)))?);
-        }
-
-        // BCC recipients
-        for bcc in &message.bcc {
-            builder = builder.bcc(
-                bcc.email
-                    .parse()
-                    .map_err(|e| MailError::Parse(format!("Invalid bcc address: {}", e)))?,
-            );
-        }
-
-        let email = builder
-            .body(message.body.get_display_content())
-            .map_err(|e| MailError::Parse(format!("Failed to build message: {}", e)))?;
-
-        // SMTP認証情報
-        let creds = Credentials::new(smtp_config.username.clone(), smtp_config.password.clone());
-
-        // SMTP接続
-        let mailer = if smtp_config.use_tls {
-            SmtpTransport::relay(&smtp_config.server)
-                .map_err(|e| MailError::Connection(format!("SMTP relay error: {}", e)))?
-                .port(smtp_config.port)
-                .credentials(creds)
-                .build()
-        } else {
-            SmtpTransport::builder_dangerous(&smtp_config.server)
-                .port(smtp_config.port)
-                .credentials(creds)
-                .build()
-        };
-
-        // メール送信
-        mailer
-            .send(&email)
-            .map_err(|e| MailError::Protocol(format!("Failed to send email: {}", e)))?;
-
-        Ok(())
+        client.send_message(message).await
     }
 
+    /// メッセージを移動
     pub async fn move_message(
         &self,
         account_id: &str,
@@ -183,106 +251,95 @@ impl MailClient {
         from_folder: &str,
         to_folder: &str,
     ) -> MailResult<()> {
-        let _account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        let uid: u32 = message_id
+            .parse()
+            .map_err(|_| MailError::Parse("Invalid message ID".to_string()))?;
 
-        // TODO: 実際のメッセージ移動を実装
-        println!(
-            "Moving message {} from {} to {}",
-            message_id, from_folder, to_folder
-        );
-        Ok(())
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+
+        client.move_message(from_folder, to_folder, uid).await
     }
 
-    pub async fn delete_message(&self, account_id: &str, message_id: &str) -> MailResult<()> {
-        let _account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+    /// メッセージを削除
+    pub async fn delete_message(
+        &self,
+        account_id: &str,
+        message_id: &str,
+        folder: &str,
+    ) -> MailResult<()> {
+        let uid: u32 = message_id
+            .parse()
+            .map_err(|_| MailError::Parse("Invalid message ID".to_string()))?;
 
-        // TODO: 実際のメッセージ削除を実装
-        println!("Deleting message {}", message_id);
-        Ok(())
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+
+        client.delete_message(folder, uid).await
     }
 
-    pub async fn mark_as_read(&self, account_id: &str, message_id: &str) -> MailResult<()> {
-        let _account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+    /// メッセージを既読にする
+    pub async fn mark_as_read(
+        &self,
+        account_id: &str,
+        message_id: &str,
+        folder: &str,
+    ) -> MailResult<()> {
+        let uid: u32 = message_id
+            .parse()
+            .map_err(|_| MailError::Parse("Invalid message ID".to_string()))?;
 
-        // TODO: 実際のフラグ設定を実装
-        println!("Marking message {} as read", message_id);
-        Ok(())
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
+
+        client
+            .set_message_flags(folder, uid, &[super::Flag::Seen])
+            .await
     }
 
+    /// フォルダー一覧を取得
     pub async fn get_folders(&self, account_id: &str) -> MailResult<Vec<String>> {
-        let account = self
-            .get_account(account_id)
-            .ok_or_else(|| MailError::Parse("Account not found".to_string()))?;
+        let mut connections = self.imap_connections.lock().await;
+        let client = connections
+            .get_mut(account_id)
+            .ok_or_else(|| MailError::Connection("IMAP not connected".to_string()))?;
 
-        // アカウント設定からフォルダ一覧を取得
-        let folders = account
-            .imap
-            .folders
-            .iter()
-            .map(|f| f.local_name.clone())
-            .collect();
-
-        Ok(folders)
+        client.list_folders().await
     }
 
-    // デバッグ用のダミーメッセージ作成
-    fn create_dummy_messages(&self, account_id: &str, folder: &str, limit: usize) -> Vec<Message> {
-        use super::{Address, MessageBody};
-        use chrono::{Duration, Utc};
+    /// 接続状態をテスト
+    pub async fn test_connections(&self, account_id: &str) -> MailResult<(bool, bool)> {
+        let mut imap_ok = false;
+        let mut smtp_ok = false;
 
-        let mut messages = Vec::new();
-        for i in 0..limit.min(10) {
-            let date = Utc::now() - Duration::days(i as i64);
-            let from = vec![Address::new(
-                format!("sender{}@example.com", i),
-                Some(format!("Sender {}", i)),
-            )];
-            let to = vec![Address::new(
-                "user@example.com".to_string(),
-                Some("User".to_string()),
-            )];
-
-            let subject = match i % 5 {
-                0 => "重要：会議の件について",
-                1 => "プロジェクトの進捗報告",
-                2 => "新着情報のお知らせ",
-                3 => "システムメンテナンスのご案内",
-                _ => "その他のお知らせ",
-            }
-            .to_string();
-
-            let body = MessageBody::new_plain(format!(
-                "これは {} のメッセージ本文です。\n\n件名: {}\n\n詳細な内容がここに表示されます。",
-                i + 1,
-                subject
-            ));
-
-            let mut message = Message::new(
-                format!("msg-{}", i),
-                from,
-                to,
-                subject,
-                body,
-                account_id.to_string(),
-                folder.to_string(),
-            );
-            message.date = date;
-
-            // 一部のメッセージを未読にする
-            if i % 3 == 0 {
-                message.mark_as_read();
-            }
-
-            messages.push(message);
+        // IMAP接続テスト
+        {
+            let connections = self.imap_connections.lock().await;
+            imap_ok = connections.contains_key(account_id);
         }
 
-        messages
+        // SMTP接続テスト
+        {
+            let connections = self.smtp_connections.lock().await;
+            if let Some(client) = connections.get(account_id) {
+                smtp_ok = client.test_connection().await.is_ok();
+            }
+        }
+
+        Ok((imap_ok, smtp_ok))
+    }
+
+    /// すべての接続を切断
+    pub async fn disconnect_all(&self, account_id: &str) -> MailResult<()> {
+        self.disconnect_imap(account_id).await.ok();
+        self.disconnect_smtp(account_id).await.ok();
+        Ok(())
     }
 }
 

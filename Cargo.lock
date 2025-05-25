@@ -197,6 +197,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-native-tls"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9343dc5acf07e79ff82d0c37899f079db3534d99f189a1837c8e549c99405bec"
+dependencies = [
+ "futures-util",
+ "native-tls",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
 name = "async-process"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1521,7 +1533,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.53.0",
 ]
 
 [[package]]
@@ -2398,11 +2410,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-imap",
+ "async-native-tls",
  "base64 0.22.1",
  "chrono",
  "clap",
  "crossterm",
  "dirs",
+ "futures",
  "imap",
  "lettre",
  "native-tls",
@@ -2412,11 +2426,15 @@ dependencies = [
  "reqwest 0.12.15",
  "rusqlite",
  "rustls 0.23.27",
+ "rustls-pki-types",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-rustls 0.26.2",
+ "tokio-util",
  "url",
  "uuid",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -2916,6 +2934,7 @@ checksum = "66a539a9ad6d5d281510d5bd368c973d636c02dbf8a67300bfb6b950696ad7df"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
  "pin-project-lite",
  "tokio",

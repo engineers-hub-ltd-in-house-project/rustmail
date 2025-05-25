@@ -1,3 +1,4 @@
+use super::oauth::{GoogleOAuthConfig, GoogleTokens};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,6 +11,8 @@ pub struct Account {
     pub signature: Option<String>,
     pub default_folder: String,
     pub enabled: bool,
+    pub oauth_config: Option<GoogleOAuthConfig>,
+    pub tokens: Option<GoogleTokens>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +44,6 @@ pub enum AuthMethod {
     Login,
     #[allow(dead_code)]
     CramMd5,
-    #[allow(dead_code)]
     OAuth2,
 }
 
@@ -77,6 +79,8 @@ impl Default for Account {
             signature: None,
             default_folder: "INBOX".to_string(),
             enabled: true,
+            oauth_config: None,
+            tokens: None,
         }
     }
 }
@@ -148,6 +152,8 @@ impl Account {
             signature: None,
             default_folder: "INBOX".to_string(),
             enabled: true,
+            oauth_config: None,
+            tokens: None,
         }
     }
 

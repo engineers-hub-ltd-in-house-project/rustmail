@@ -1,10 +1,18 @@
 pub mod account;
 pub mod client;
+pub mod imap_client;
 pub mod message;
+pub mod oauth;
+pub mod smtp_client;
 
 pub use account::{Account, AuthMethod, FolderMapping, FolderType, ImapConfig, SmtpConfig};
 pub use client::MailClient;
+pub use imap_client::ImapClient;
 pub use message::{Address, Flag, Message, MessageBody};
+pub use oauth::{
+    GoogleOAuthClient, GoogleOAuthConfig, GoogleTokens, GoogleUserInfo, OAuthFlowManager,
+};
+pub use smtp_client::SmtpClient;
 
 use std::error::Error;
 use std::fmt;
